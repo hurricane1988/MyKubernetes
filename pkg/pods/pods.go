@@ -37,6 +37,8 @@ type Pods struct {
 
 // GetPodsFromNamespace 获取指定namespace中的pod信息
 func GetPodsFromNamespace(namespace string, all bool) {
+	// 定义pod slice信息
+	var PodSlice []interface{}
 	// 初始化subconfig
 	config, err := clientcmd.BuildConfigFromFlags("", configs.KubeconfigPath)
 	_, err = clientcmd.BuildConfigFromFlags("", configs.KubeconfigPath)
@@ -63,6 +65,7 @@ func GetPodsFromNamespace(namespace string, all bool) {
 				StartTime: pod.Status.StartTime,
 				Namespace: pod.Namespace,
 			}
+			PodSlice = append(PodSlice, results)
 			fmt.Println(results)
 		}
 	} else if all == false {
@@ -77,4 +80,5 @@ func GetPodsFromNamespace(namespace string, all bool) {
 			// fmt.Printf(" 命名空间是：%v\n pod名字：%v\n IP：%v\n\n", pod.Namespace, pod.Name, pod.Status.PodIP)
 		}
 	}
+	fmt.Println(PodSlice[:])
 }
