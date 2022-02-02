@@ -8,6 +8,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"log"
+	"os"
 )
 
 // DeploymentStruct 定义deploy结构体
@@ -21,6 +23,20 @@ type DeploymentStruct struct {
 
 // DeploymentSlice deployment切片信息
 var DeploymentSlice []interface{}
+
+// 初始化日志信息
+func init() {
+	LogPath := configs.LogPath
+	LogFile, err := os.OpenFile(LogPath,
+		os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0664)
+	if err != nil {
+		fmt.Printf("创建日志路径%s失败, 错误信息%e\n", LogPath, err)
+		return
+	}
+	log.SetOutput(LogFile)
+	log.SetPrefix("[deployment] ")
+	log.SetFlags(log.Ltime | log.Ldate | log.Lmicroseconds)
+}
 
 // GetDeployFromNamespace 获取deployment信息
 func GetDeployFromNamespace() {
