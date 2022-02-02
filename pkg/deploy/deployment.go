@@ -9,12 +9,17 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// 定义deploy结构体
+// DeploymentStruct 定义deploy结构体
 type DeploymentStruct struct {
 	ID        string `json:"id,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
-	Replicas  int    `json:"replicas,omitempty"`
+	Name      string `json:"name,omitempty"`
+
+	Replicas int `json:"replicas,omitempty"`
 }
+
+// DeploymentSlice deployment切片信息
+var DeploymentSlice []interface{}
 
 // GetDeployFromNamespace 获取deployment信息
 func GetDeployFromNamespace() {
@@ -30,5 +35,13 @@ func GetDeployFromNamespace() {
 	}
 	for _, v := range deploymentList.Items {
 		fmt.Printf("命名空间: %v\n deployment服务名称: %v\n 副本个数: %v\n\n", v.Namespace, v.Name, v.Status.Replicas)
+		results := DeploymentStruct{
+			ID:        string(v.UID),
+			Namespace: v.Namespace,
+			Name:      v.Name,
+			Replicas:  int(v.Status.Replicas),
+		}
+		DeploymentSlice = append(DeploymentSlice, results)
 	}
+	fmt.Println(DeploymentSlice)
 }
