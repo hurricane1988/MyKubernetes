@@ -3,6 +3,7 @@ package deploy
 import (
 	"MyKubernetes/configs"
 	"context"
+	"encoding/json"
 	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -34,14 +35,19 @@ func GetDeployFromNamespace() {
 		return
 	}
 	for _, v := range deploymentList.Items {
-		fmt.Printf("命名空间: %v\n deployment服务名称: %v\n 副本个数: %v\n\n", v.Namespace, v.Name, v.Status.Replicas)
+		// fmt.Printf("命名空间: %v\n deployment服务名称: %v\n 副本个数: %v\n\n", v.Namespace, v.Name, v.Status.Replicas)
 		results := DeploymentStruct{
 			ID:        string(v.UID),
 			Namespace: v.Namespace,
 			Name:      v.Name,
 			Replicas:  int(v.Status.Replicas),
 		}
-		DeploymentSlice = append(DeploymentSlice, results)
+		// json格式化处理
+		results01, _ := json.Marshal(results)
+		results02, _ := json.MarshalIndent(results, "", "  ")
+		fmt.Println(string(results01))
+		fmt.Println("\n", string(results02))
+		DeploymentSlice = append(DeploymentSlice, string(results02))
 	}
 	fmt.Println(DeploymentSlice)
 }
