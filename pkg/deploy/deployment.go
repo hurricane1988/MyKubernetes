@@ -28,6 +28,18 @@ type DeploymentStruct struct {
 // DeploymentSlice deployment切片信息
 var DeploymentSlice []interface{}
 
+// MyDeployment 定义创建deployment的结构体
+type MyDeployment struct {
+	Name          string            `json:"name,omitempty"`
+	Namespace     string            `json:"namespace,omitempty"`
+	MatchLabel    map[string]string `json:"matchLabel,omitempty"`
+	ContainerName string            `json:"containerName,omitempty"`
+	PortName      string            `json:"portName,omitempty"`
+	ContainerPort int32             `json:"containerPort,omitempty"`
+	Image         string            `json:"image,omitempty"`
+	Replicas      int               `json:"replicas,omitempty"`
+}
+
 // 初始化日志信息
 func init() {
 	LogPath := configs.LogPath
@@ -73,45 +85,45 @@ func GetDeployFromNamespace() {
 }
 
 // CreateDeployment 创建deployment方法
-func CreateDeployment() {
+func CreateDeployment(deploy MyDeployment) {
 	config, err := clientcmd.BuildConfigFromFlags("", configs.KubeconfigPath)
 	if err != nil {
 		panic(err.Error())
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	deploymentClient := clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
+	deploymentClient := client.AppsV1().Deployments(apiv1.NamespaceDefault)
 
-	deployment := &appsv1.Deployment{
+	deploymentYaml := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "nginx-test",
+			Name: deploy.Name,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(2),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": "nginx",
+					deploy.MatchLabel["key"]: deploy.MatchLabel["value"],
 				},
 			},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": "nginx",
+						deploy.MatchLabel["key"]: deploy.MatchLabel["value"],
 					},
 				},
 				Spec: apiv1.PodSpec{
 					Containers: []apiv1.Container{
 						{
-							Name:  "web",
-							Image: "nginx:1.12",
+							Name:  deploy.ContainerName,
+							Image: deploy.Image,
 							Ports: []apiv1.ContainerPort{
 								{
-									Name:          "http-80",
+									Name:          deploy.PortName,
 									Protocol:      apiv1.ProtocolTCP,
-									ContainerPort: 80,
+									ContainerPort: deploy.ContainerPort,
 								},
 							},
 						},
@@ -123,7 +135,7 @@ func CreateDeployment() {
 
 	// create deployment
 	fmt.Println("creating deployment...")
-	result, err := deploymentClient.Create(context.TODO(), deployment, metav1.CreateOptions{})
+	result, err := deploymentClient.Create(context.TODO(), deploymentYaml, metav1.CreateOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
