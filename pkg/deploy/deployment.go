@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"log"
 	"os"
+	"reflect"
 )
 
 // DeploymentStruct 定义deploy结构体
@@ -21,8 +22,7 @@ type DeploymentStruct struct {
 	ID        string `json:"id,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
 	Name      string `json:"name,omitempty"`
-
-	Replicas int `json:"replicas,omitempty"`
+	Replicas  int32  `json:"replicas,omitempty"`
 }
 
 // DeploymentSlice deployment切片信息
@@ -72,7 +72,7 @@ func GetDeployFromNamespace() {
 			ID:        string(v.UID),
 			Namespace: v.Namespace,
 			Name:      v.Name,
-			Replicas:  int(v.Status.Replicas),
+			Replicas:  int32(int(v.Status.Replicas)),
 		}
 		// json格式化处理
 		results01, _ := json.Marshal(results)
@@ -86,6 +86,7 @@ func GetDeployFromNamespace() {
 
 // CreateDeployment 创建deployment方法
 func CreateDeployment(deploy MyDeployment) {
+	fmt.Println(deploy)
 	config, err := clientcmd.BuildConfigFromFlags("", configs.KubeconfigPath)
 	if err != nil {
 		panic(err.Error())
@@ -96,7 +97,6 @@ func CreateDeployment(deploy MyDeployment) {
 	}
 
 	deploymentClient := client.AppsV1().Deployments(apiv1.NamespaceDefault)
-
 	deploymentYaml := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deploy.Name,
@@ -141,25 +141,6 @@ func CreateDeployment(deploy MyDeployment) {
 	}
 	fmt.Printf("creating deployment %q.\n", result.GetObjectMeta().GetName())
 
-	// update deployment
-	prompt()
-	fmt.Println("updating deployment...")
-
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		result, getErr := deploymentClient.Get(context.TODO(), "demo-deployment", metav1.GetOptions{})
-		if getErr != nil {
-			panic(fmt.Errorf("failed to get latest version of deployment: %v", getErr))
-		}
-		result.Spec.Replicas = int32Ptr(1)                           // reduce replica count
-		result.Spec.Template.Spec.Containers[0].Image = "nginx:1.13" // change nginx version
-		_, updateErr := deploymentClient.Update(context.TODO(), result, metav1.UpdateOptions{})
-		return updateErr
-	})
-	if retryErr != nil {
-		panic(fmt.Errorf("update failed: %v", retryErr))
-	}
-	fmt.Printf("updating failed: %v", retryErr)
-
 	// List deployments
 	prompt()
 	fmt.Printf("Listing deployment in namespace %q\n", apiv1.NamespaceDefault)
@@ -171,16 +152,67 @@ func CreateDeployment(deploy MyDeployment) {
 		fmt.Printf(" * %s (%d replicas)\n ", d.Name, *d.Spec.Replicas)
 	}
 
+}
+
+// DeleteDeployment 删除deployment函数
+func DeleteDeployment(name, namespace string) {
+	config, err := clientcmd.BuildConfigFromFlags("", configs.KubeconfigPath)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	deploymentClient := client.AppsV1().Deployments(namespace)
 	// delete deployment
 	prompt()
 	fmt.Println("deleting deployment...")
 	deletePolicy := metav1.DeletePropagationForeground
-	if err := deploymentClient.Delete(context.TODO(), "demo-deployment", metav1.DeleteOptions{
+	if err := deploymentClient.Delete(context.TODO(), name, metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
 	}); err != nil {
+		log.Printf("删除deployment %s失败,错误信息: %e\n", name, err)
 		panic(err.Error())
 	}
-	fmt.Println("deleted deployment")
+	fmt.Printf("删除deployment %s成功!\n", name)
+	log.Printf("删除deployment %s成功!\n", name)
+}
+
+// UpdateDeployment 更新deployment
+func UpdateDeployment(name, namespace, image string, replicas int32) {
+	config, err := clientcmd.BuildConfigFromFlags("", configs.KubeconfigPath)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	prompt()
+	fmt.Println("updating deployment...")
+
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		result, getErr := deploymentClient.Get(context.TODO(), name, metav1.GetOptions{})
+		if getErr != nil {
+			panic(fmt.Errorf("failed to get latest version of deployment: %v", getErr))
+		}
+		result.Spec.Template.Spec.Containers[0].Image = image // change nginx version
+		if reflect.ValueOf(replicas).IsNil() {
+			log.Printf("副本数设置为空")
+		}
+		result.Spec.Replicas = int32Ptr(1) // reduce replica count
+		_, updateErr := deploymentClient.Update(context.TODO(), result, metav1.UpdateOptions{})
+		return updateErr
+	})
+	if retryErr != nil {
+		panic(fmt.Errorf("update failed: %v", retryErr))
+	}
+	fmt.Printf("updating failed: %v", retryErr)
 }
 
 //
