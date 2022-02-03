@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"MyKubernetes/configs"
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/retry"
 	"log"
 	"os"
 )
@@ -76,9 +78,12 @@ func CreateDeployment() {
 	if err != nil {
 		panic(err.Error())
 	}
-	client, _ := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
 
-	deploymentClient := client.AppsV1().Deployments(apiv1.NamespaceDefault)
+	deploymentClient := clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -115,4 +120,71 @@ func CreateDeployment() {
 			},
 		},
 	}
+
+	// create deployment
+	fmt.Println("creating deployment...")
+	result, err := deploymentClient.Create(context.TODO(), deployment, metav1.CreateOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	fmt.Printf("creating deployment %q.\n", result.GetObjectMeta().GetName())
+
+	// update deployment
+	prompt()
+	fmt.Println("updating deployment...")
+
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		result, getErr := deploymentClient.Get(context.TODO(), "demo-deployment", metav1.GetOptions{})
+		if getErr != nil {
+			panic(fmt.Errorf("failed to get latest version of deployment: %v", getErr))
+		}
+		result.Spec.Replicas = int32Ptr(1)                           // reduce replica count
+		result.Spec.Template.Spec.Containers[0].Image = "nginx:1.13" // change nginx version
+		_, updateErr := deploymentClient.Update(context.TODO(), result, metav1.UpdateOptions{})
+		return updateErr
+	})
+	if retryErr != nil {
+		panic(fmt.Errorf("update failed: %v", retryErr))
+	}
+	fmt.Printf("updating failed: %v", retryErr)
+
+	// List deployments
+	prompt()
+	fmt.Printf("Listing deployment in namespace %q\n", apiv1.NamespaceDefault)
+	list, err := deploymentClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	for _, d := range list.Items {
+		fmt.Printf(" * %s (%d replicas)\n ", d.Name, *d.Spec.Replicas)
+	}
+
+	// delete deployment
+	prompt()
+	fmt.Println("deleting deployment...")
+	deletePolicy := metav1.DeletePropagationForeground
+	if err := deploymentClient.Delete(context.TODO(), "demo-deployment", metav1.DeleteOptions{
+		PropagationPolicy: &deletePolicy,
+	}); err != nil {
+		panic(err.Error())
+	}
+	fmt.Println("deleted deployment")
+}
+
+//
+func prompt() {
+	fmt.Printf("-> Press return key to continue.")
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		break
+	}
+	if err := scanner.Err(); err != nil {
+		panic(err.Error())
+	}
+	fmt.Println()
+}
+
+//
+func int32Ptr(i int32) *int32 {
+	return &i
 }
