@@ -30,14 +30,14 @@ var DeploymentSlice []interface{}
 
 // MyDeployment 定义创建deployment的结构体
 type MyDeployment struct {
-	Name          string            `json:"name,omitempty"`
-	Namespace     string            `json:"namespace,omitempty"`
-	MatchLabel    map[string]string `json:"matchLabel,omitempty"`
-	ContainerName string            `json:"containerName,omitempty"`
-	PortName      string            `json:"portName,omitempty"`
-	ContainerPort int32             `json:"containerPort,omitempty"`
-	Image         string            `json:"image,omitempty"`
-	Replicas      int               `json:"replicas,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Namespace     string `json:"namespace,omitempty"`
+	MatchLabel    string `json:"matchLabel,omitempty"`
+	ContainerName string `json:"containerName,omitempty"`
+	PortName      string `json:"portName,omitempty"`
+	ContainerPort int32  `json:"containerPort,omitempty"`
+	Image         string `json:"image,omitempty"`
+	Replicas      int    `json:"replicas,omitempty"`
 }
 
 // 初始化日志信息
@@ -105,13 +105,13 @@ func CreateDeployment(deploy MyDeployment) {
 			Replicas: int32Ptr(2),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					deploy.MatchLabel["key"]: deploy.MatchLabel["value"],
+					"app": deploy.MatchLabel,
 				},
 			},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						deploy.MatchLabel["key"]: deploy.MatchLabel["value"],
+						"app": deploy.MatchLabel,
 					},
 				},
 				Spec: apiv1.PodSpec{
@@ -204,6 +204,7 @@ func UpdateDeployment(name, namespace, image string, replicas int32) {
 		result.Spec.Template.Spec.Containers[0].Image = image // change nginx version
 		if reflect.ValueOf(replicas).IsNil() {
 			log.Printf("副本数设置为空")
+			fmt.Println(replicas)
 		}
 		result.Spec.Replicas = int32Ptr(1) // reduce replica count
 		_, updateErr := deploymentClient.Update(context.TODO(), result, metav1.UpdateOptions{})
