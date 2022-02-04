@@ -629,3 +629,7 @@
 [pods] 2022/02/03 11:55:15.074841 获取namespace openebs指定POD信息成功, pod名称: openebs-ndm-node-exporter-w5dg8 IP: 10.1.0.194
 [pods] 2022/02/03 11:55:15.074853 获取namespace openebs指定POD信息成功, pod名称: openebs-ndm-operator-9bdd87f58-kr7rx IP: 10.1.0.186
 [deployment] 2022/02/04 10:42:14.785696 删除deployment web成功!
+[deployment] 2022/02/04 11:21:42.105537 获取kubeconfig配置文件失败,错误信息: stat ./config: no such file or directory
+[deployment] 2022/02/04 11:28:01.054111 获取kubeconfig配置文件失败,错误信息: stat ./config: no such file or directory
+[deployment] 2022/02/04 11:29:56.460091 获取kubeconfig配置文件失败,错误信息: stat =: no such file or directory
+[deployment] 2022/02/04 11:30:13.550843 获取kubeconfig配置文件失败,错误信息: stat =: no such file or directory
